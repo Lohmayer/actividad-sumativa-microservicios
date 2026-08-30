@@ -1,0 +1,13 @@
+package com.duoc.microservicio_publicaciones;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class MicroservicioPublicacionesApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(MicroservicioPublicacionesApplication.class, args);
+	}
+
+}
