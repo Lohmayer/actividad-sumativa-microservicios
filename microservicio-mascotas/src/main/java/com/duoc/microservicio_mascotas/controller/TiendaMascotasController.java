@@ -2,13 +2,17 @@ package com.duoc.microservicio_mascotas.controller;
 
 import com.duoc.microservicio_mascotas.model.Producto;
 import com.duoc.microservicio_mascotas.model.Venta;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 public class TiendaMascotasController {
@@ -62,5 +66,94 @@ public class TiendaMascotasController {
     @GetMapping("/ventas")
     public List<Venta> obtenerVentas() {
         return ventas;
+    }
+
+    @GetMapping("/ganancias/diarias")
+    public ResponseEntity<Map<String, Object>> obtenerGananciaDiaria(
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate fecha) {
+
+        List<Venta> ventasDelDia = ventas.stream()
+                .filter(venta -> venta.getFecha().equals(fecha))
+                .toList();
+
+        double ganancia = ventasDelDia.stream()
+                .mapToDouble(this::calcularGananciaVenta)
+                .sum();
+
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("fecha", fecha);
+        respuesta.put("cantidadVentas", ventasDelDia.size());
+        respuesta.put("ganancia", ganancia);
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/ganancias/mensuales")
+    public ResponseEntity<Map<String, Object>> obtenerGananciaMensual(
+            @RequestParam int anio,
+            @RequestParam int mes) {
+
+        if (mes < 1 || mes > 12) {
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("error", "El mes debe estar entre 1 y 12");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        List<Venta> ventasDelMes = ventas.stream()
+                .filter(venta -> venta.getFecha().getYear() == anio)
+                .filter(venta -> venta.getFecha().getMonthValue() == mes)
+                .toList();
+
+        double ganancia = ventasDelMes.stream()
+                .mapToDouble(this::calcularGananciaVenta)
+                .sum();
+
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("anio", anio);
+        respuesta.put("mes", mes);
+        respuesta.put("cantidadVentas", ventasDelMes.size());
+        respuesta.put("ganancia", ganancia);
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/ganancias/anuales")
+    public ResponseEntity<Map<String, Object>> obtenerGananciaAnual(
+            @RequestParam int anio) {
+
+        List<Venta> ventasDelAnio = ventas.stream()
+                .filter(venta -> venta.getFecha().getYear() == anio)
+                .toList();
+
+        double ganancia = ventasDelAnio.stream()
+                .mapToDouble(this::calcularGananciaVenta)
+                .sum();
+
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("anio", anio);
+        respuesta.put("cantidadVentas", ventasDelAnio.size());
+        respuesta.put("ganancia", ganancia);
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    private double calcularGananciaVenta(Venta venta) {
+        Producto productoVendido = productos.stream()
+                .filter(producto ->
+                        producto.getId() == venta.getProductoId())
+                .findFirst()
+                .orElse(null);
+
+        if (productoVendido == null) {
+            return 0;
+        }
+
+        double gananciaUnitaria =
+                productoVendido.getPrecioVenta()
+                - productoVendido.getPrecioCompra();
+
+        return gananciaUnitaria * venta.getCantidad();
     }
 }
